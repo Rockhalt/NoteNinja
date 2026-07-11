@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../utils/supabaseClient'; // Injected master backend client connection
 import { Zap, Award, BookOpen, Camera, Cpu, Plus, Check, Trash2, ListTodo } from 'lucide-react';
 
 // Internal Premium Glass Component: Metric Stats Block
@@ -20,39 +21,20 @@ function GlassStatBox({ title, value, icon: Icon, accentColor = '#f59e0b' }) {
       boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)'
     }}>
       <div>
-        <span style={{ 
-          display: 'block', 
-          fontSize: '11px', 
-          color: '#71717a', 
-          fontWeight: '700', 
-          textTransform: 'uppercase', 
-          letterSpacing: '1px', 
-          marginBottom: '8px' 
-        }}>
+        <span style={{ display: 'block', fontSize: '11px', color: '#71717a', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
           {title}
         </span>
-        <span style={{ 
-          display: 'block', 
-          fontSize: '32px', 
-          fontWeight: '800', 
-          color: '#ffffff', 
-          letterSpacing: '-0.5px' 
-        }}>
+        <span style={{ display: 'block', fontSize: '32px', fontWeight: '800', color: '#ffffff', letterSpacing: '-0.5px' }}>
           {value}
         </span>
       </div>
       
       {Icon && (
         <div style={{ 
-          width: '46px', 
-          height: '46px', 
-          borderRadius: '12px', 
+          width: '46px', height: '46px', borderRadius: '12px', 
           background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, transparent 100%)',
           border: '1px solid rgba(245, 158, 11, 0.2)',
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          flexShrink: 0
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
         }}>
           <Icon size={22} style={{ color: accentColor }} />
         </div>
@@ -81,6 +63,7 @@ function GlassCard({ children, style = {} }) {
 }
 
 export default function DashboardOverview({
+  userId, // Unique operator ID derived from main Supabase session authentication context
   notebooksCount,
   totalFlashcardsCount,
   notebooksList,
@@ -92,40 +75,90 @@ export default function DashboardOverview({
   retentionScore
 }) {
   
-  // FIXED: Initialize data straight from persistent local keys to survive window resets
-  const [todoList, setTodoList] = useState(() => {
-    const cachedData = localStorage.getItem('noteninja_tasks_matrix');
-    return cachedData ? JSON.parse(cachedData) : [
-      { id: 1, text: 'Scan microprocessor arithmetic lecture sheets', completed: false },
-      { id: 2, text: 'Run active recall quiz on core concepts', completed: true }
-    ];
-  });
-  
+  const [todoList, setTodoList] = useState([]);
   const [newTodoText, setNewTodoText] = useState('');
+  const [loadingTasks, setLoadingTasks] = useState(true);
 
-  // FIXED: Automatically pipe variable status modifications down to persistent memory fields
+  // FIXED: Fetch real-time unique user data straight from the Supabase 'todos' table
   useEffect(() => {
-    localStorage.setItem('noteninja_tasks_matrix', JSON.stringify(todoList));
-  }, [todoList]);
+    if (!userId) return;
 
-  const handleAddTask = (e) => {
+    async function fetchUserTasks() {
+      try {
+        setLoadingTasks(true);
+        const { data, error } = await supabase
+          .from('todos')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        setTodoList(data || []);
+      } catch (err) {
+        console.error('Task Matrix sync error:', err.message);
+      } finally {
+        setLoadingTasks(false);
+      }
+    }
+
+    fetchUserTasks();
+  }, [userId]);
+
+  const handleAddTask = async (e) => {
     e.preventDefault();
-    if (!newTodoText.trim()) return;
-    setTodoList(prev => [
-      ...prev,
-      { id: Date.now(), text: newTodoText.trim(), completed: false }
-    ]);
-    setNewTodoText('');
+    if (!newTodoText.trim() || !userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .insert([{
+          text: newTodoText.trim(),
+          user_id: userId,
+          completed: false
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) setTodoList(prev => [...prev, data]);
+      setNewTodoText('');
+    } catch (err) {
+      console.error('Failed to inject new target to database:', err.message);
+    }
   };
 
-  const handleToggleTask = (id) => {
-    setTodoList(prev => prev.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
+  const handleToggleTask = async (id, currentStatus) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: !currentStatus })
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      setTodoList(prev => prev.map(todo => 
+        todo.id === id ? { ...todo, completed: !todo.completed } : todo
+      ));
+    } catch (err) {
+      console.error('Database task status mutation failure:', err.message);
+    }
   };
 
-  const handleDeleteTask = (id) => {
-    setTodoList(prev => prev.filter(todo => todo.id !== id));
+  const handleDeleteTask = async (id) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      setTodoList(prev => prev.filter(todo => todo.id !== id));
+    } catch (err) {
+      console.error('Failed to clear target row from database:', err.message);
+    }
   };
 
   const previewNotebooks = notebooksList.slice(0, 3);
@@ -133,17 +166,17 @@ export default function DashboardOverview({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', width: '100%', boxSizing: 'border-box' }}>
       
-      {/* SECTION 1: Telemetry Glass Row Metrics */}
+      {/* SECTION 1: Metrics */}
       <section style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', width: '100%' }}>
         <GlassStatBox title="Current Learning Streak" value={`${currentStreak} Days`} icon={Zap} />
         <GlassStatBox title="Knowledge Retention Score" value={`${retentionScore}%`} icon={Award} />
         <GlassStatBox title="Calculated Card Registry" value={totalFlashcardsCount} icon={BookOpen} />
       </section>
 
-      {/* SECTION 2: Split Layout Workspace */}
+      {/* SECTION 2: Split Workspace */}
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', width: '100%' }}>
         
-        {/* Left Column Canvas Block: Recent Workspaces */}
+        {/* Left Column: Workspaces */}
         <div style={{ flex: '2 1 500px', display: 'flex', flexDirection: 'column' }}>
           <GlassCard style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -174,15 +207,9 @@ export default function DashboardOverview({
                     key={notebook.id}
                     onClick={() => onReviewNotebook(notebook)}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '16px 20px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid rgba(38, 38, 38, 0.3)',
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(38, 38, 38, 0.3)',
+                      borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
                     }}
                     onMouseEnter={(e) => {
                       e.currentTarget.style.backgroundColor = 'rgba(245, 158, 11, 0.02)';
@@ -194,9 +221,7 @@ export default function DashboardOverview({
                     }}
                   >
                     <div>
-                      <h4 style={{ margin: 0, color: '#ffffff', fontSize: '15px', fontWeight: '600' }}>
-                        {notebook.title}
-                      </h4>
+                      <h4 style={{ margin: 0, color: '#ffffff', fontSize: '15px', fontWeight: '600' }}>{notebook.title}</h4>
                       <span style={{ display: 'block', fontSize: '12px', color: '#71717a', marginTop: '4px' }}>
                         Synchronized {new Date(notebook.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
                       </span>
@@ -209,17 +234,15 @@ export default function DashboardOverview({
           </GlassCard>
         </div>
 
-        {/* Right Column Canvas Block: Study Tasks & Diagnostics */}
+        {/* Right Column: Tasks Matrix & Diagnostics */}
         <div style={{ flex: '1 1 340px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* Dynamic Glassmorphism To-Do List Widget Component */}
           <GlassCard style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <ListTodo size={18} style={{ color: '#f59e0b' }} />
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#ffffff' }}>Study Tasks Matrix</h3>
             </div>
 
-            {/* Task Add Form */}
             <form onSubmit={handleAddTask} style={{ display: 'flex', gap: '8px' }}>
               <input 
                 type="text"
@@ -248,22 +271,23 @@ export default function DashboardOverview({
               </button>
             </form>
 
-            {/* Interactive Task Listing Rows */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxStatusHeight: '200px', overflowY: 'auto' }}>
-              {todoList.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+              {loadingTasks ? (
+                <span style={{ fontSize: '12px', color: '#52525b', textAlign: 'center', padding: '10px 0' }}>Syncing data parameters...</span>
+              ) : todoList.length === 0 ? (
                 <span style={{ fontSize: '12px', color: '#52525b', textAlign: 'center', padding: '10px 0' }}>All clear paths, vector targets complete.</span>
               ) : (
                 todoList.map(todo => (
                   <div 
                     key={todo.id}
                     style={{
-                      display: 'flex', alignItems: 'center', justifyBetween: 'space-between', gap: '12px',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
                       padding: '10px 14px', backgroundColor: 'rgba(255,255,255,0.01)', border: '1px solid rgba(38,38,38,0.3)',
                       borderRadius: '8px', opacity: todo.completed ? 0.45 : 1, transition: 'all 0.2s'
                     }}
                   >
                     <div 
-                      onClick={() => handleToggleTask(todo.id)}
+                      onClick={() => handleToggleTask(todo.id, todo.completed)}
                       style={{
                         width: '18px', height: '18px', borderRadius: '4px', border: todo.completed ? '1px solid #f59e0b' : '1px solid rgba(82,82,91,0.6)',
                         backgroundColor: todo.completed ? 'rgba(245,158,11,0.1)' : 'transparent', cursor: 'pointer',
@@ -274,8 +298,7 @@ export default function DashboardOverview({
                     </div>
                     
                     <span style={{
-                      flexGrow: 1, fontSize: '13px', color: '#d4d4d8', 
-                      textDecoration: todo.completed ? 'line-through' : 'none',
+                      flexGrow: 1, fontSize: '13px', color: '#d4d4d8', textDecoration: todo.completed ? 'line-through' : 'none',
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                     }}>
                       {todo.text}
@@ -295,7 +318,7 @@ export default function DashboardOverview({
             </div>
           </GlassCard>
 
-          {/* Secure Runtime Cluster Telemetry Status Card */}
+          {/* Runtime Integrity Status */}
           <GlassCard style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
@@ -306,7 +329,6 @@ export default function DashboardOverview({
                 Core telemetry loops evaluate framework status variables against active nodes.
               </p>
             </div>
-
             <div style={{ marginTop: '20px' }}>
               <div style={{ padding: '12px 16px', backgroundColor: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(38, 38, 38, 0.6)', borderRadius: '10px', fontSize: '12px', fontFamily: 'monospace', color: '#f59e0b', marginBottom: '14px' }}>
                 🔹 {systemCheckStatus}
