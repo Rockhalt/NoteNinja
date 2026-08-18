@@ -39,7 +39,7 @@ export const generateFlashcardsFromImage = async (imageBlobUrl) => {
     const base64Image = await fileToBase64(imageBlobUrl);
 
     const visionResponse = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "qwen/qwen3.6-27b",
       messages: [
         {
           role: "user",
@@ -60,7 +60,7 @@ export const generateFlashcardsFromImage = async (imageBlobUrl) => {
     const transcription = visionResponse.choices[0]?.message?.content || "";
 
     const aiResponse = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "qwen/qwen3.6-27b",
       messages: [
         {
           role: "user",
@@ -89,7 +89,7 @@ export async function generateSummaryFromImage(imageBlobUrl) {
 
     // 2. Query the multimodal node to extract a direct high-impact summary
     const summaryResponse = await groq.chat.completions.create({
-      model: "meta-llama/llama-4-scout-17b-16e-instruct",
+      model: "qwen/qwen3.6-27b",
       messages: [
         {
           role: "user",
@@ -120,7 +120,7 @@ export async function generateSummaryFromImage(imageBlobUrl) {
 export const generateFlashcardsFromText = async (rawText) => {
   try {
     const aiResponse = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "qwen/qwen3.6-27b",
       messages: [
         {
           role: "user",
@@ -143,7 +143,7 @@ export const generateFlashcardsFromText = async (rawText) => {
 export const generateSummaryFromText = async (rawText) => {
   try {
     const summaryResponse = await groq.chat.completions.create({
-      model: "llama-3.1-8b-instant",
+      model: "qwen/qwen3.6-27b",
       messages: [
         {
           role: "user",
