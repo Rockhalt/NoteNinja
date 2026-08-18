@@ -1,9 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 
+// Initialize the Google client pulling the secure key from your environment
 const ai = new GoogleGenAI({ 
   apiKey: import.meta.env.VITE_GEMINI_API_KEY 
 });
 
+// Helper function to deep-scan the AI response object and find the array of cards
 const findArrayInObject = (obj) => {
   if (Array.isArray(obj)) return obj;
   if (typeof obj !== 'object' || obj === null) return null;
@@ -18,6 +20,7 @@ const findArrayInObject = (obj) => {
   return null;
 };
 
+// Internal Helper: Standardize Base64 strings for Gemini Vision ingestion
 const formatBase64ForGemini = (base64String) => {
   const rawBase64 = base64String.split(",")[1] || base64String;
   const mimeMatch = base64String.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
@@ -25,52 +28,24 @@ const formatBase64ForGemini = (base64String) => {
   return { data: rawBase64, mimeType };
 };
 
-// ⚡ NEW: High-Speed Image Compression Engine
-// This intercepts massive camera files and shrinks them to 1024px WebP/JPEG format
-export const compressImageForGemini = async (blobUrl) => {
+// If you don't already have fileToBase64 imported from elsewhere, here is the standard converter:
+export const fileToBase64 = async (blobUrl) => {
+  const response = await fetch(blobUrl);
+  const blob = await response.blob();
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      // 1024px is the sweet spot: perfectly readable for OCR, extremely fast to upload
-      const MAX_WIDTH = 1024; 
-      const MAX_HEIGHT = 1024;
-      let width = img.width;
-      let height = img.height;
-
-      if (width > height) {
-        if (width > MAX_WIDTH) {
-          height *= MAX_WIDTH / width;
-          width = MAX_WIDTH;
-        }
-      } else {
-        if (height > MAX_HEIGHT) {
-          width *= MAX_HEIGHT / height;
-          height = MAX_HEIGHT;
-        }
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Compress to JPEG at 75% quality to aggressively cut upload latency
-      resolve(canvas.toDataURL('image/jpeg', 0.75));
-    };
-    img.onerror = reject;
-    img.src = blobUrl;
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
   });
 };
 
 // ==========================================
-// 1. UNIFIED ENGINE 
+// 1. UNIFIED ENGINE (Highly Recommended for Performance)
 // ==========================================
-export async function processNotes(imageBlobUrl) {
+export async function processNotes(base64Image) {
   try {
-    // FIXED: Route the image through the compressor before hitting Gemini
-    const compressedBase64 = await compressImageForGemini(imageBlobUrl);
-    const { data, mimeType } = formatBase64ForGemini(compressedBase64);
+    const { data, mimeType } = formatBase64ForGemini(base64Image);
 
     const response = await ai.models.generateContent({
       model: "gemini-3.6-flash",
@@ -104,9 +79,8 @@ export async function processNotes(imageBlobUrl) {
 // ==========================================
 export const generateFlashcardsFromImage = async (imageBlobUrl) => {
   try {
-    // FIXED: Route the image through the compressor
-    const compressedBase64 = await compressImageForGemini(imageBlobUrl);
-    const { data, mimeType } = formatBase64ForGemini(compressedBase64);
+    const base64Image = await fileToBase64(imageBlobUrl);
+    const { data, mimeType } = formatBase64ForGemini(base64Image);
 
     const aiResponse = await ai.models.generateContent({
       model: "gemini-3.6-flash",
@@ -128,9 +102,8 @@ export const generateFlashcardsFromImage = async (imageBlobUrl) => {
 
 export async function generateSummaryFromImage(imageBlobUrl) {
   try {
-    // FIXED: Route the image through the compressor
-    const compressedBase64 = await compressImageForGemini(imageBlobUrl);
-    const { data, mimeType } = formatBase64ForGemini(compressedBase64);
+    const base64Image = await fileToBase64(imageBlobUrl);
+    const { data, mimeType } = formatBase64ForGemini(base64Image);
 
     const summaryResponse = await ai.models.generateContent({
       model: "gemini-3.6-flash",
