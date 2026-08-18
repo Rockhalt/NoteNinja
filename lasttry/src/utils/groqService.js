@@ -1,24 +1,48 @@
-import { Groq } from 'groq-sdk';
+import { GoogleGenAI } from "@google/genai";
 
-const groq = new Groq({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true 
+// Initialize the Google client pulling the secure key from your environment
+const ai = new GoogleGenAI({ 
+  apiKey: import.meta.env.VITE_GEMINI_API_KEY 
 });
 
-const fileToBase64 = (fileUrl) => {
-  return new Promise((resolve, reject) => {
-    fetch(fileUrl)
-      .then((res) => res.blob())
-      .then((blob) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      })
-      .catch(reject);
-  });
-};
+export async function processNotes(base64Image) {
+  try {
+    // Strip the "data:image/jpeg;base64," prefix that HTML canvas generates
+    const rawBase64 = base64Image.split(",")[1];
+    const mimeType = base64Image.split(";")[0].split(":")[1];
 
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [
+        {
+          inlineData: {
+            data: rawBase64,
+            mimeType: mimeType
+          }
+        },
+        {
+          text: `You are an elite study assistant. Analyze these notes and return a raw JSON object strictly using this structure:
+          {
+            "title": "A short, descriptive title",
+            "summary": "A 2-3 sentence summary of the core concepts",
+            "flashcards": [
+              { "question": "Question text here", "answer": "Answer text here" }
+            ]
+          }`
+        }
+      ],
+      config: {
+        // Forces the engine to return a perfectly structured JSON string
+        responseMimeType: "application/json" 
+      }
+    });
+
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error("Gemini Vision processing failure:", error);
+    throw new Error("Failed to process notes through the Gemini pipeline.");
+  }
+}
 // Helper function to deep-scan the AI response object and find the array of cards
 const findArrayInObject = (obj) => {
   if (Array.isArray(obj)) return obj;
