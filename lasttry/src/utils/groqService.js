@@ -48,7 +48,7 @@ export async function processNotes(base64Image) {
     const { data, mimeType } = formatBase64ForGemini(base64Image);
 
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         {
           inlineData: { data, mimeType }
@@ -83,7 +83,7 @@ export const generateFlashcardsFromImage = async (imageBlobUrl) => {
     const { data, mimeType } = formatBase64ForGemini(base64Image);
 
     const aiResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         { inlineData: { data, mimeType } },
         { text: "You are an elite educational assistant. Extract the text/diagrams from this image and synthesize them into high-yield flashcards. Output a valid JSON object containing an array of flashcards. Each card object needs a key for 'question' and a key for 'answer'." }
@@ -106,7 +106,7 @@ export async function generateSummaryFromImage(imageBlobUrl) {
     const { data, mimeType } = formatBase64ForGemini(base64Image);
 
     const summaryResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         { inlineData: { data, mimeType } },
         { text: "You are an elite educational analyst. Analyze these lecture notes or textbook diagrams. Provide a concise, high-impact 3-4 sentence master summary highlighting the core concepts, definitions, or equations for quick pre-quiz revision. Return only the summary paragraph—do not include introductory phrases, headers, or conversational filler." }
@@ -126,7 +126,7 @@ export async function generateSummaryFromImage(imageBlobUrl) {
 export const generateFlashcardsFromText = async (rawText) => {
   try {
     const aiResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         { text: `You are an elite educational assistant. Take the raw lecture notes text content and synthesize them into high-yield flashcards. Output a valid JSON object containing an array of flashcards. Each card object needs a key for 'question' and a key for 'answer'. \n\n Notes:\n${rawText}` }
       ],
@@ -145,7 +145,7 @@ export const generateFlashcardsFromText = async (rawText) => {
 export const generateSummaryFromText = async (rawText) => {
   try {
     const summaryResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: [
         { text: `You are an elite educational analyst. Analyze this lecture document text. Provide a concise, high-impact 3-4 sentence master summary highlighting the core concepts, definitions, or equations for quick pre-quiz revision. Return only the summary paragraph—do not include introductory phrases, headers, or conversational filler.\n\n Notes:\n${rawText}` }
       ]
