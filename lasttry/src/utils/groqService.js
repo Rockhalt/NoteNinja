@@ -1,159 +1,151 @@
-import { GoogleGenAI } from "@google/genai";
-
-// Initialize the Google client pulling the secure key from your environment
-const ai = new GoogleGenAI({ 
-  apiKey: import.meta.env.VITE_GEMINI_API_KEY 
-});
-
-// Helper function to deep-scan the AI response object and find the array of cards
-const findArrayInObject = (obj) => {
-  if (Array.isArray(obj)) return obj;
-  if (typeof obj !== 'object' || obj === null) return null;
-  
-  for (const key in obj) {
-    if (Array.isArray(obj[key])) return obj[key];
-    if (typeof obj[key] === 'object') {
-      const nested = findArrayInObject(obj[key]);
-      if (nested) return nested;
-    }
-  }
-  return null;
-};
-
-// Internal Helper: Standardize Base64 strings for Gemini Vision ingestion
-const formatBase64ForGemini = (base64String) => {
-  const rawBase64 = base64String.split(",")[1] || base64String;
-  const mimeMatch = base64String.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/);
-  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-  return { data: rawBase64, mimeType };
-};
-
-// If you don't already have fileToBase64 imported from elsewhere, here is the standard converter:
-export const fileToBase64 = async (blobUrl) => {
-  const response = await fetch(blobUrl);
-  const blob = await response.blob();
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
-};
+import Tesseract from 'tesseract.js';
 
 // ==========================================
-// 1. UNIFIED ENGINE (Highly Recommended for Performance)
+// 1. IN-BROWSER OCR PIPELINE (Tesseract.js)
 // ==========================================
-export async function processNotes(base64Image) {
+export const extractTextFromImage = async (imageBlobUrl) => {
   try {
-    const { data, mimeType } = formatBase64ForGemini(base64Image);
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [
-        {
-          inlineData: { data, mimeType }
-        },
-        {
-          text: `You are an elite study assistant. Analyze these notes and return a raw JSON object strictly using this structure:
-          {
-            "title": "A short, descriptive title",
-            "summary": "A 2-3 sentence summary of the core concepts",
-            "flashcards": [
-              { "question": "Question text here", "answer": "Answer text here" }
-            ]
-          }`
-        }
-      ],
-      config: { responseMimeType: "application/json" }
-    });
-
-    return JSON.parse(response.text);
+    // Tesseract.js runs entirely in the client's browser
+    const { data: { text } } = await Tesseract.recognize(
+      imageBlobUrl,
+      'eng',
+      { logger: m => console.log(m) } // Logs OCR reading progress to the browser console
+    );
+    return text;
   } catch (error) {
-    console.error("Gemini Vision processing failure:", error);
-    throw new Error("Failed to process notes through the Gemini pipeline.");
+    console.error("Tesseract.js extraction failed:", error);
+    throw new Error("Failed to extract text from the image locally.");
   }
+};
+
+// ==========================================
+// 2. UNIFIED ENGINE (Tesseract + GPT-OSS-120B)
+// ==========================================
+export async function processNotes(imageBlobUrl) {
+  try {
+    // Step 1: Extract text locally to avoid vision model rate limits
+    const extractedText = await extractTextFromImage(imageBlobUrl);
+    
+    if (!extractedText.trim()) {
+      throw new Error("No readable text detected in the image.");
+    }
+
+    // Step 2: Send the extracted text to Groq's 120B reasoning model
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-120b", 
+        messages: [
+          {
+            role: "user",
+            content: `You are an elite study assistant. Analyze this extracted text from a student's lecture notes and return a raw JSON object strictly using this structure. Do not output markdown code blocks or conversational text:
+{
+  "title": "A short, descriptive title",
+  "summary": "A 2-3 sentence executive master summary of core concepts",
+  "flashcards": [
+    { "question": "Question text here", "answer": "Answer text here" }
+  ]
 }
 
-// ==========================================
-// 2. IMAGE PIPELINES
-// ==========================================
-export const generateFlashcardsFromImage = async (imageBlobUrl) => {
-  try {
-    const base64Image = await fileToBase64(imageBlobUrl);
-    const { data, mimeType } = formatBase64ForGemini(base64Image);
-
-    const aiResponse = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [
-        { inlineData: { data, mimeType } },
-        { text: "You are an elite educational assistant. Extract the text/diagrams from this image and synthesize them into high-yield flashcards. Output a valid JSON object containing an array of flashcards. Each card object needs a key for 'question' and a key for 'answer'." }
-      ],
-      config: { responseMimeType: "application/json" }
+Extracted Notes:
+${extractedText}`
+          }
+        ],
+        response_format: { type: "json_object" },
+        temperature: 0.2
+      })
     });
 
-    const rawJson = JSON.parse(aiResponse.text || "{}");
-    const cleanArray = findArrayInObject(rawJson);
-    return cleanArray || [];
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Groq API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return JSON.parse(data.choices[0].message.content);
+
   } catch (error) {
-    console.error("Gemini AI API Failure (Flashcards):", error);
+    console.error("Pipeline processing error:", error);
     throw error;
   }
-};
-
-export async function generateSummaryFromImage(imageBlobUrl) {
-  try {
-    const base64Image = await fileToBase64(imageBlobUrl);
-    const { data, mimeType } = formatBase64ForGemini(base64Image);
-
-    const summaryResponse = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [
-        { inlineData: { data, mimeType } },
-        { text: "You are an elite educational analyst. Analyze these lecture notes or textbook diagrams. Provide a concise, high-impact 3-4 sentence master summary highlighting the core concepts, definitions, or equations for quick pre-quiz revision. Return only the summary paragraph—do not include introductory phrases, headers, or conversational filler." }
-      ]
-    });
-
-    return summaryResponse.text || "Core overview layers could not be formulated for this note array.";
-  } catch (error) {
-    console.error("Gemini AI API Failure (Summary):", error);
-    return "The system encountered an error parsing the document framework for a pre-quiz briefing.";
-  }
 }
 
 // ==========================================
-// 3. TEXT PIPELINES
+// 3. COMPONENT WRAPPERS
+// ==========================================
+export const generateFlashcardsFromImage = async (imageBlobUrl) => {
+  const data = await processNotes(imageBlobUrl);
+  return data.flashcards || [];
+};
+
+export const generateSummaryFromImage = async (imageBlobUrl) => {
+  const data = await processNotes(imageBlobUrl);
+  return data.summary || "Summary could not be generated.";
+};
+
+// ==========================================
+// 4. TEXT PIPELINES (Direct Groq API Integration)
 // ==========================================
 export const generateFlashcardsFromText = async (rawText) => {
   try {
-    const aiResponse = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [
-        { text: `You are an elite educational assistant. Take the raw lecture notes text content and synthesize them into high-yield flashcards. Output a valid JSON object containing an array of flashcards. Each card object needs a key for 'question' and a key for 'answer'. \n\n Notes:\n${rawText}` }
-      ],
-      config: { responseMimeType: "application/json" }
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-120b", 
+        messages: [{
+          role: "user",
+          content: `You are an elite educational assistant. Take the raw lecture notes text content and synthesize them into high-yield flashcards. Output a valid JSON object containing a 'flashcards' array. Each card object needs a key for 'question' and a key for 'answer'.\n\nNotes:\n${rawText}`
+        }],
+        response_format: { type: "json_object" }
+      })
     });
+    
+    if (!response.ok) {
+        throw new Error(`Groq API responded with status: ${response.status}`);
+    }
 
-    const rawJson = JSON.parse(aiResponse.text || "{}");
-    const cleanArray = findArrayInObject(rawJson);
-    return cleanArray || [];
+    const data = await response.json();
+    const parsed = JSON.parse(data.choices[0].message.content);
+    return parsed.flashcards || [];
   } catch (error) {
-    console.error("Gemini AI Text Flashcard Ingestion Failure:", error);
+    console.error("Groq Text Flashcard Ingestion Failure:", error);
     throw error;
   }
 };
 
 export const generateSummaryFromText = async (rawText) => {
   try {
-    const summaryResponse = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
-      contents: [
-        { text: `You are an elite educational analyst. Analyze this lecture document text. Provide a concise, high-impact 3-4 sentence master summary highlighting the core concepts, definitions, or equations for quick pre-quiz revision. Return only the summary paragraph—do not include introductory phrases, headers, or conversational filler.\n\n Notes:\n${rawText}` }
-      ]
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-oss-120b",
+        messages: [{
+          role: "user",
+          content: `You are an elite educational analyst. Analyze this lecture document text. Provide a concise, high-impact 3-4 sentence master summary highlighting the core concepts, definitions, or equations for quick pre-quiz revision. Return only the summary paragraph—do not include introductory phrases, headers, or conversational filler.\n\nNotes:\n${rawText}`
+        }]
+      })
     });
+    
+    if (!response.ok) {
+        throw new Error(`Groq API responded with status: ${response.status}`);
+    }
 
-    return summaryResponse.text || "Core overview layers could not be formulated for this text array.";
+    const data = await response.json();
+    return data.choices[0].message.content || "Core overview layers could not be formulated for this text array.";
   } catch (error) {
-    console.error("Gemini AI Text Summary Ingestion Failure:", error);
+    console.error("Groq Text Summary Ingestion Failure:", error);
     return "The system encountered an error parsing the document frame context.";
   }
-}
+};

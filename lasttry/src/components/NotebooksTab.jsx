@@ -175,7 +175,7 @@ export default function NotebooksTab({
                   border: '1px solid rgba(38, 38, 38, 0.4)', borderRadius: '16px',
                   padding: '24px', boxSizing: 'border-box', cursor: 'pointer',
                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)', display: 'flex', flexDirection: 'column', justifyBetween: 'space-between', gap: '20px'
+                  boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '20px'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
@@ -200,12 +200,12 @@ export default function NotebooksTab({
                   </p>
                 </div>
                 
-                <div style={{ display: 'flex', justifyBetween: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(38,38,38,0.3)', paddingTop: '14px', marginTop: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(38,38,38,0.3)', paddingTop: '14px', marginTop: 'auto' }}>
                   <span style={{ fontSize: '12px', color: '#a1a1aa', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Eye size={12} style={{ color: '#f59e0b' }} /> Review Workspace
                   </span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteNotebook(notebook.id); }}
+                    onClick={(e) => { e.stopPropagation(); onDeleteNotebook(notebook.id); }}
                     style={{ background: 'none', border: 'none', color: '#3f3f46', cursor: 'pointer', padding: '4px', transition: 'color 0.2s' }}
                     onMouseEnter={(e) => e.target.style.color = '#ef4444'}
                     onMouseLeave={(e) => e.target.style.color = '#3f3f46'}
@@ -243,7 +243,7 @@ export default function NotebooksTab({
         </button>
         
         <button
-          onClick={() => handleDeleteNotebook(selectedNotebook.id)}
+          onClick={() => onDeleteNotebook(selectedNotebook.id)}
           style={{
             display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(239, 68, 68, 0.05)',
             color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '8px 16px',
