@@ -1,115 +1,67 @@
-Here is a hyper-polished, dark luxury **`README.md`** customized to reflect the exact premium aesthetic and workspace metrics we just locked into **NoteNinja**.
+🥷 NoteNinja
+High-Velocity AI Study Synthesis Engine
 
----
+🚀 Launch Live Application
+https://noteninja-sigma.vercel.app/
 
-# 🥷 N O T E N I N J A
+NoteNinja is a 100% serverless, high-velocity educational web platform designed to streamline studying by automating knowledge extraction, active recall testing, and performance tracking. By combining in-browser OCR with ultra-low-latency AI reasoning, NoteNinja eliminates the friction of manual note-taking and instantly transforms raw lectures or uploaded diagrams into structured memory nodes.
 
-> **The Elite Memory Optimization Core.** An ultra-minimalist, dark luxury cognitive canvas engineered to compress raw data matrices into permanent active recall storage.
+⚡ Core Features
+In-Browser Vision Processing: Utilizes Tesseract.js to process image payloads and extract text directly within the client's browser, ensuring zero server upload times and bypassing API rate limits.
 
-NoteNinja shatters the mold of flat, boring study apps. By combining premium frosted glassmorphism layers, high-contrast ambient backlighting, and raw hardware-accelerated processing pipelines, it provides an elite execution studio for long-term knowledge retention.
+Instant Knowledge Synthesis: Hooks directly into Groq’s high-throughput LPU infrastructure (openai/gpt-oss-120b) to synthesize raw extracted text into high-yield flashcards and executive summaries in milliseconds.
 
----
+The Recall Arena: A distraction-free, interactive 3D flashcard testing interface designed for rapid active recall and memory retention.
 
-## 💎 The Aesthetic Specification Matrix
+Vault Repositories: Organizes study materials into dynamic structural profiles, utilizing Supabase (PostgreSQL) for secure telemetry, data isolation, and session management.
 
-NoteNinja is meticulously designed around a **brushed-platinum and charcoal luxury framework**:
+Premium Glassmorphism UI: Built with custom CSS glass components, featuring a dark-themed, high-contrast aesthetic with ambient blurs and gold accents.
 
-* **Frosted Glassmorphism Layering:** High-end translucent view panes structuralized with smooth **20px** hardware-accelerated background filters (`backdrop-filter: blur(20px)`).
-* **Radiant Telemetry Accents:** Deep velvet-black surfaces bounded by micro-glowing perimeters and distinct amber-gold highlights (**#f59e0b**).
-* **Kinetic UI Physics:** Fluid transitions and asynchronous hardware entry paths that reflect light seamlessly like premium automotive displays.
+🛠️ Technical Stack
+Frontend Framework: React.js + Vite (100% Client-Side Architecture)
 
----
+Optical Character Recognition (OCR): Tesseract.js (In-Browser Execution)
 
-## ⚡ Core Pipeline Architecture
+AI Inference Engine: Groq API (openai/gpt-oss-120b)
 
-### 🛡️ Secure Gateways & Isomorphic Session Guards
+Database & Auth: Supabase (PostgreSQL)
 
-* **Active Session Trapping:** Background event listeners monitor session statuses on initialization, automatically fast-tracking authorized operators past public loading screens.
-* **Supabase Row-Level Isolation (RLS):** Heavy encryption architecture ensuring that user data matrices are completely invisible to external query probes.
+Deployment: Vercel
 
-### 📷 Vision Scanning & Extraction Pipeline
+💻 Local Development Setup
+To run NoteNinja locally on your machine, follow these steps:
 
-* **Multi-Modal Schema Decoding:** Instantly decodes visual assets—whiteboard write-ups, engineering notation sheets, or custom layouts—into raw text streams.
-* **Groq AI Core Processing:** Routes context vectors directly through high-speed AI processing nodes to eliminate computation delay variables.
-
-### 🧠 The Active Recall Studio
-
-* **3D Tactile Card Inversions:** Interactive, responsive flashcard models built to turn dense textual information into high-velocity review sequences.
-* **Persistent Task Tracking Matrix:** An embedded interactive study task manager mapped to persistent browser memory blocks (`localStorage`) to permanently survive framework resets.
-
-### 📊 Real-Time Performance Telemetry
-
-* **Workspace Velocity Arrays:** Hand-tailored custom SVG graphs tracking your trailing 7-day document compile rates.
-* **Error Boundary Isolation:** Deep analytical mapping loops evaluating successful baseline paths against terminated error trajectories.
-
----
-
-## 🛠️ System Spec Sheet
-
-* **Runtime Framework:** React 18 (Engineered with useMemo data caching & state hooks)
-* **Cloud Architecture:** Supabase DB Cluster & Authenticated Identity Engine
-* **Processing Node:** Groq AI Language Processing Unit (LPU)
-* **Vector Matrix Assets:** Lucide React Engine
-
----
-
-## 📦 System Initialization Sequence
-
-### 1. Replicate the Repository Vault
-
-```bash
+1. Clone the Repository
+Bash
 git clone https://github.com/your-username/noteninja.git
 cd noteninja
-
-```
-
-### 2. Install Workspace Dependencies
-
-```bash
+2. Install Dependencies
+Bash
 npm install
+3. Environment Configuration
+Create a .env file in the root directory of the project and add your Groq and Supabase keys:
 
-```
+Code snippet
+# Groq AI Key
+VITE_GROQ_API_KEY=gsk_your_groq_api_key_here
 
-### 3. Anchor Secure Environment Configurations
+# Supabase Keys (If applicable)
+VITE_SUPABASE_URL=your_supabase_url_here
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+Security Note: Ensure your .env file is listed in your .gitignore before committing any changes.
 
-Create a `.env` file in your root workspace path and secure your connection strings (ensuring this file remains safely hidden from public tracking):
-
-```env
-VITE_SUPABASE_URL=your_secure_supabase_endpoint
-VITE_SUPABASE_ANON_KEY=your_private_anon_token_signature
-
-```
-
-### 4. Ignite the Development Server
-
-```bash
+4. Launch the Development Server
+Bash
 npm run dev
+Navigate to http://localhost:5173 in your browser to view the application.
 
-```
+🧠 Workflow Architecture
+Ingestion: User uploads an image of a diagram/notes or pastes raw text into the Vault interface.
 
----
+Local Extraction: If an image is uploaded, Tesseract.js maps the text vectors entirely in the browser.
 
-## 📁 Repository Directory Blueprints
+AI Reasoning: The extracted string is beamed directly to Groq's 120B reasoning model.
 
-```text
-src/
-├── components/
-│   ├── AnalyticsTab.jsx       # Custom velocity graphs & metric matrices
-│   ├── DashboardOverview.jsx  # Telemetry row modules & persistent task trackers
-│   ├── NotebooksTab.jsx      # Flashcard review studios & AI summary modules
-│   ├── QuizTab.jsx           # Randomized active recall test arenas
-│   └── ScanTab.jsx           # Vision engine upload frames & tracking overlays
-├── pages/
-│   ├── AuthPage.jsx          # Ambient gold blurred luxury entry portal
-│   ├── DashboardPage.jsx     # Primary workspace layout controller
-│   └── LandingPage.jsx       # Interactive tab preview bento grids
-├── utils/
-│   ├── emailService.js       # Asynchronous greeting intercept pipelines
-│   └── supabaseClient.js     # Global cloud communication hooks
-└── App.jsx                   # Central routing & session architecture map
+JSON Structuring: The model strictly adheres to a JSON schema, returning a parsed summary and a matrix of question-answer nodes.
 
-```
-
----
-
-> `// PLATFORM RUNTIME SPECIFICATION: ALL NOTE-NINJA SYSTEM MODULES ONLINE //`
+UI Rendering: The React state updates instantly, populating the 3D flashcard deck for immediate review.
